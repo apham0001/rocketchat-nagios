@@ -41,8 +41,9 @@ CONFIG = {
     }
 }
 
-TEMPLATE_SERVICE = "{hostalias} {servicedesc} is {servicestate}:\n{serviceoutput}" #noqa
-TEMPLATE_HOST = "Host {hostalias} is {hoststate}:\n{hostoutput}"  #noqa
+TEMPLATE_SERVICE = "{notificationtype} {hostalias}/{servicedesc} is {servicestate}:\n{serviceoutput}" #noqa
+TEMPLATE_HOST = "{notificationtype} Host {hostalias} is {hoststate}:\n{hostoutput}"  #noqa
+
 
 def parse():
     parser = argparse.ArgumentParser(description='Sends Rocket.Chat webhooks')
@@ -50,7 +51,8 @@ def parse():
     parser.add_argument('--proxy', help='http(s) proxy')
     parser.add_argument('--channel', help='Rocket.Chat channel')
     parser.add_argument('--hostalias', help='Host Alias', required=True)
-    parser.add_argument('--nagiosurl', help='Nagios URL. Eg : https://nagios.example.com:8888')
+    parser.add_argument('--notificationtype', help='Notification type',
+                        required=True)
     parser.add_argument('--hoststate', help='Host State')
     parser.add_argument('--hostoutput', help='Host Output')
     parser.add_argument('--servicedesc', help='Service Description')
@@ -64,7 +66,6 @@ def parse():
 
 def encode_special_characters(text):
     text = text.replace("%", "%25")
-    text = text.replace("&", "%26")
     return text
 
 
@@ -80,14 +81,12 @@ def create_data(args, config):
     )
     state = args.servicestate if args.servicestate else args.hoststate
     color = config["colors"][state]
-
     payload = {
         "alias": config["alias"],
         "avatar": config["avatar"],
-        "text": text.split('\n')[0],
         "attachments": [
             {
-                "text": text.split("\n",1)[1],
+                "text": text,
                 "color": color
             }
         ]
@@ -111,12 +110,6 @@ def request(url, data, args):
 
 if __name__ == "__main__":
     args = parse()
-    if args.nagiosurl:
-        if args.servicestate:
-            TEMPLATE_SERVICE += "\nSee {nagiosurl}/nagios/cgi-bin/extinfo.cgi?type=2&host={hostalias}&service={servicedesc}"
-        elif args.hoststate:
-            TEMPLATE_HOST += "\nSee {nagiosurl}/nagios/cgi-bin/extinfo.cgi?type=1&host={hostalias}"
-
     data = create_data(args, CONFIG)
     response = request(args.url, data, args)
     print response
